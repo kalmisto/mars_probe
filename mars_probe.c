@@ -8,8 +8,8 @@
 
 #define WIDHT	1024
 #define HEIGHT	640
-#define GRAV	4
-#define POHJA	563
+#define GRAV	1
+#define POHJA	607
 #define PUOLIVALI WIDHT/2
 #define round(p) ((p)>=0?(long)((p)+0.5):(long)((p)-0.5))
 
@@ -27,16 +27,18 @@ static SDL_Surface *screen;
 static SDL_Surface *luotain_surface;
 static SDL_Surface *background;
 
-static void grav()
+static void
+grav()
 {
 	if (probe.y < POHJA) {
-		probe.dy = probe.dy + 3.333333;
+		probe.dy = probe.dy + 0.5;
 	} else {
 		probe.dy = 0;
 	}
 }
 
-static void draw_background()
+static void
+draw_background()
 {
 	SDL_Rect src, dest;
 	src.x = 0;
@@ -47,13 +49,14 @@ static void draw_background()
         SDL_BlitSurface(background, &src, screen, &dest);
 }
 
-static void draw_probe()
+static void
+draw_probe()
 {
 	SDL_Rect src, dest;
 
-	matka_y = probe.dy * (1.0/30);
+	matka_y = probe.dy * time_scale;
 	probe.y = probe.y + round(matka_y);
-	matka_x = probe.dx * (1.0/30);
+	matka_x = probe.dx * time_scale;
 	probe.x = probe.x + round(matka_x);
 
 	src.x = 0;
@@ -71,13 +74,15 @@ static void draw_probe()
 	SDL_BlitSurface(luotain_surface, &src, screen, &dest);
 }
 
-static void throttle()
+static void
+throttle()
 {
-	probe.dy = probe.dy - 5; 
+	probe.dy = probe.dy - 1;
 }
 
 
-static void PlayGame()
+static void
+PlayGame()
 {
 	Uint8 *keystate;
 	int quit = 0;
@@ -106,8 +111,8 @@ static void PlayGame()
 
 		/* Respond to input. */
 		if (keystate[SDLK_q] || keystate[SDLK_ESCAPE]) quit = 1;
-		if (keystate[SDLK_LEFT]) probe.dx = probe.dx - 2;
-		if (keystate[SDLK_RIGHT]) probe.dx = probe.dx + 2;
+		if (keystate[SDLK_LEFT]) probe.dx = probe.dx - 0.5;
+		if (keystate[SDLK_RIGHT]) probe.dx = probe.dx + 0.5;
 
 		grav();
 		/* Forward and back arrow keys activate thrusters. */
@@ -125,7 +130,8 @@ static void PlayGame()
 	}
 }
 
-int main()
+int
+main(void)
 {
 	probe.x = PUOLIVALI;
 	probe.y = POHJA;
