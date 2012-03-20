@@ -1,3 +1,5 @@
+#include <sys/stat.h>
+
 #include <SDL/SDL.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -5,33 +7,41 @@
 #include <time.h>
 #include <math.h>
 #include <assert.h>
+#include <err.h>
+#include <fcntl.h>
+#include <termios.h>
+#include <unistd.h>
 
 #define WIDHT	1024
 #define HEIGHT	640
 #define GRAV	1
 #define POHJA	607
 #define PUOLIVALI WIDHT/2
+#define TAUSTAN_LEVEYS 5680 /* = viimeisen rotaatiospritekuvan aloituskohta blittaukselle(koska blitataan surfacen vasemman yläkulman koordinaattien mukaan) */
 #define round(p) ((p)>=0?(long)((p)+0.5):(long)((p)-0.5))
 
 struct alus {
 	long x;	/* aluksen paikka screenillä */
 	long y;
-	double dy;
+	double dy; /* nopeusvektori */
 	double dx;
 };
 
-struct alus probe;
-double time_scale;
-double matka_x, matka_y;
-static SDL_Surface *screen;
-static SDL_Surface *luotain_surface;
-static SDL_Surface *background;
+struct	alus probe;
+double	time_scale;
+double	matka_x, matka_y;
+double	kulma;
+static	SDL_Surface *screen;
+static	SDL_Surface *luotain_surface;
+static	SDL_Surface *background;
+int	sprite_offset;
+
 
 static void
 grav()
 {
 	if (probe.y < POHJA) {
-		probe.dy = probe.dy + 0.5;
+		probe.dy = probe.dy + 0.2;
 	} else {
 		probe.dy = 0;
 	}
@@ -59,17 +69,17 @@ draw_probe()
 	matka_x = probe.dx * time_scale;
 	probe.x = probe.x + round(matka_x);
 
-	src.x = 0;
+	src.x = 0 + sprite_offset;
 	src.y = 0;
-	src.w = luotain_surface->w;
+	src.w = 80;
 	src.h = luotain_surface->h;
 
 
       /* Alusta liikutetaan muuttamalla aluksen keskipisteen sijaintia. Aluksen piirtäminen
 	 sen sijaan määräytyy aluksen kuvan vasemman yläkulman mukaan */
-	dest.x = probe.x - luotain_surface->w / 2;
+	dest.x = probe.x - 80 / 2;
 	dest.y = probe.y - luotain_surface->h / 2;
-	dest.w = luotain_surface->w;
+	dest.w = 80;
 	dest.h = luotain_surface->h;
 	SDL_BlitSurface(luotain_surface, &src, screen, &dest);
 }
@@ -77,7 +87,8 @@ draw_probe()
 static void
 throttle()
 {
-	probe.dy = probe.dy - 1;
+	probe.dy = probe.dy - (0.5 * sin(2 * M_PI * kulma / 360));
+	probe.dx = probe.dx - (0.5 * cos(2 * M_PI * kulma / 360));
 }
 
 
@@ -111,9 +122,22 @@ PlayGame()
 
 		/* Respond to input. */
 		if (keystate[SDLK_q] || keystate[SDLK_ESCAPE]) quit = 1;
-		if (keystate[SDLK_LEFT]) probe.dx = probe.dx - 0.5;
-		if (keystate[SDLK_RIGHT]) probe.dx = probe.dx + 0.5;
-
+		if (keystate[SDLK_RIGHT]) {
+			kulma = kulma + 5;
+			if (sprite_offset >= TAUSTAN_LEVEYS) {
+				sprite_offset = 0;
+			} else {
+				sprite_offset = sprite_offset + 80;
+			}
+		}
+		if (keystate[SDLK_LEFT]) {
+			kulma = kulma - 5;
+			if (sprite_offset <= 0) {
+				sprite_offset = TAUSTAN_LEVEYS;
+			} else {
+				sprite_offset = sprite_offset - 80;
+			}
+		}
 		grav();
 		/* Forward and back arrow keys activate thrusters. */
 		if (keystate[SDLK_UP]) throttle();
@@ -135,6 +159,10 @@ main(void)
 {
 	probe.x = PUOLIVALI;
 	probe.y = POHJA;
+	probe.dx = 0;
+	probe.dy = 3;
+	kulma = 90; /* Raketti on alussa pystyssä. Jos kulma = 0 niin raketin kärki näyttää suoraan vasemmalle */
+	sprite_offset = 0; /* aloitetaan luotain_surfacen piirtö rotaatiosprite.bmp:n ensimmäisestä "framesta". */
 
 	/* Initialise the SDL and error check */
 	if (SDL_Init(SDL_INIT_VIDEO) != 0)
@@ -165,10 +193,10 @@ main(void)
 		// Both lines changed to give a corrected exit and descriptive error
 	}
 
-	luotain_surface = SDL_LoadBMP("alus.bmp");
+	luotain_surface = SDL_LoadBMP("rotaatiosprite.bmp");
 	if (luotain_surface == NULL)
 		{
-		printf("Unable to load the penguin\n");
+		printf("Unable to load the rotaatiosprite.bmp\n");
 		exit(EXIT_FAILURE);
 		// Both lines changed as above
 	}
